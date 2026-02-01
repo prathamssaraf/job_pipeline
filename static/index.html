@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Pipeline Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">🎯</div>
+                <h1>Job Tracker</h1>
+            </div>
+            <nav class="nav">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <span class="nav-icon">📊</span>
+                    Dashboard
+                </a>
+                <a href="#" class="nav-item" data-section="jobs">
+                    <span class="nav-icon">💼</span>
+                    Jobs
+                </a>
+                <a href="#" class="nav-item" data-section="sources">
+                    <span class="nav-icon">🔗</span>
+                    Sources
+                </a>
+                <a href="#" class="nav-item" data-section="settings">
+                    <span class="nav-icon">⚙️</span>
+                    Settings
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn btn-primary btn-run" id="runPipelineBtn">
+                    <span class="btn-icon">▶️</span>
+                    Run Pipeline
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-title">
+                    <h2 id="pageTitle">Dashboard</h2>
+                    <span class="header-subtitle" id="pageSubtitle">Overview of your job tracking pipeline</span>
+                </div>
+                <div class="header-actions">
+                    <div class="scheduler-status" id="schedulerStatus">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Scheduler Active</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div class="content">
+                <!-- Dashboard Section -->
+                <section id="dashboardSection" class="section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon stat-jobs">💼</div>
+                            <div class="stat-info">
+                                <h3 class="stat-value" id="totalJobs">0</h3>
+                                <p class="stat-label">Total Jobs</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon stat-sources">🔗</div>
+                            <div class="stat-info">
+                                <h3 class="stat-value" id="totalSources">0</h3>
+                                <p class="stat-label">Active Sources</p>
+                            </div>
+                        </div>
+                         <!-- New Metrics -->
+                        <div class="stat-card">
+                            <div class="stat-icon stat-checks">🔄</div>
+                            <div class="stat-info">
+                                <h3 class="stat-value" id="checksToday">0</h3>
+                                <p class="stat-label">Checks Today</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon stat-changes">✨</div>
+                            <div class="stat-info">
+                                <h3 class="stat-value" id="changesDetected">0</h3>
+                                <p class="stat-label">Changes Detected</p>
+                            </div>
+                        </div>
+                         <!-- End New Metrics -->
+                        <div class="stat-card">
+                            <div class="stat-icon stat-time">⏰</div>
+                            <div class="stat-info">
+                                <h3 class="stat-value" id="lastRun">Never</h3>
+                                <p class="stat-label">Last Run</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon stat-next">📅</div>
+                            <div class="stat-info">
+                                <h3 class="stat-value" id="nextRun">-</h3>
+                                <p class="stat-label">Next Run</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="recent-section">
+                        <div class="section-header">
+                            <h3>Recent Jobs</h3>
+                            <a href="#" class="view-all" data-section="jobs">View All →</a>
+                        </div>
+                        <div class="jobs-list" id="recentJobsList">
+                            <div class="loading">Loading...</div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Jobs Section -->
+                <section id="jobsSection" class="section">
+                    <!-- Source Selection View -->
+                    <div id="jobsSourceView">
+                        <div class="section-header">
+                            <h3>Select a Job Source</h3>
+                        </div>
+                        <div class="sources-grid" id="jobsSourcesList">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Job List View (Hidden by default) -->
+                    <div id="jobsListView" style="display: none;">
+                        <div class="section-header">
+                            <button class="btn btn-secondary btn-sm" onclick="showJobsSourceView()">
+                                ← Back to Sources
+                            </button>
+                            <h3 id="selectedSourceName">Source Name</h3>
+                            <div class="filter-controls">
+                                <div class="search-box">
+                                    <input type="text" id="jobSearch" placeholder="Search jobs...">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="jobs-table-container">
+                            <table class="jobs-table">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Company</th>
+                                        <th>Location</th>
+                                        <th>First Seen</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jobsTableBody">
+                                    <tr><td colspan="6" class="loading">Loading...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Sources Section -->
+                <section id="sourcesSection" class="section">
+                    <div class="section-header">
+                        <h3>Job Sources</h3>
+                        <button class="btn btn-primary" id="addSourceBtn">
+                            <span>+ Add Source</span>
+                        </button>
+                    </div>
+                    <div class="sources-grid" id="sourcesList">
+                        <div class="loading">Loading...</div>
+                    </div>
+                    
+                    <!-- Jobs by Source Tables -->
+                    <div class="source-jobs-container" id="sourceJobsContainer">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                </section>
+
+                <!-- Settings Section -->
+                <section id="settingsSection" class="section">
+                    <div class="settings-card">
+                        <h3>Scheduler Settings</h3>
+                        <div class="setting-row">
+                            <label>
+                                <span class="setting-label">Enable Scheduler</span>
+                                <span class="setting-description">Automatically run pipeline on schedule</span>
+                            </label>
+                            <label class="switch">
+                                <input type="checkbox" id="schedulerEnabled" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-row">
+                            <label>
+                                <span class="setting-label">Run Interval</span>
+                                <span class="setting-description">How often to check for new jobs</span>
+                            </label>
+                            <select id="intervalSelect">
+                                <option value="15">Every 15 minutes</option>
+                                <option value="30">Every 30 minutes</option>
+                                <option value="60" selected>Every hour</option>
+                                <option value="120">Every 2 hours</option>
+                                <option value="360">Every 6 hours</option>
+                                <option value="720">Every 12 hours</option>
+                                <option value="1440">Every 24 hours</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Source Modal -->
+    <div class="modal" id="addSourceModal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Job Source</h3>
+                <button class="modal-close" id="closeModalBtn">&times;</button>
+            </div>
+            <form id="addSourceForm">
+                <div class="form-group">
+                    <label for="sourceName">Source Name</label>
+                    <input type="text" id="sourceName" placeholder="e.g., Google Careers" required>
+                </div>
+                <div class="form-group">
+                    <label for="sourceUrl">Source URL</label>
+                    <input type="url" id="sourceUrl" placeholder="https://careers.google.com/jobs" required>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="requiresBrowser" checked>
+                        <span>Requires Browser (for JavaScript-heavy sites)</span>
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelModalBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Source</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
