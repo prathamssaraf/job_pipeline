@@ -62,12 +62,17 @@ class BrowserFetcher:
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--remote-debugging-port=9222")
-            options.add_argument("--disable-gpu")
-            options.add_argument("--disable-software-rasterizer")
-            options.add_argument("--disable-extensions")
+            # Memory saving flags - CRITICAL for Termux
+            options.add_argument("--disable-features=site-per-process")
+            options.add_argument("--disable-site-isolation-trials")
+            options.add_argument("--disable-breakpad")
+            options.add_argument("--disable-sync")
+            options.add_argument("--disable-cloud-import")
             options.add_argument("--disable-gpu-compositing")
-            options.add_argument("--disable-features=VizDisplayCompositor")
-            options.add_argument("--dns-prefetch-disable")
+            
+            # Use Mobile User Agent to get lighter pages
+            mobile_ua = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+            options.add_argument(f"user-agent={mobile_ua}")
             # Note: --single-process removed as it causes instability on some pages
             
             # Explicitly find chromedriver path
