@@ -28,8 +28,11 @@ export CARGO_BUILD_TARGET="aarch64-linux-android"
 
 
 
+
 pip install --upgrade pip
-pip install -r requirements.txt
+echo "Installing requirements (using pre-built binaries where possible)..."
+pip install -r requirements.txt --prefer-binary
+
 
 echo "Setup complete!"
 
