@@ -125,14 +125,30 @@ class BrowserFetcher:
             driver.set_page_load_timeout(self.timeout)
             
             # Navigate to page
+            # Navigation
             driver.get(url)
             
-            # Wait for dynamic content to load
+            # Wait for content
             time.sleep(self.wait_for_content)
             
-            # Scroll to trigger lazy loading
-            driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
-            time.sleep(2)
+            # CRITICAL: On Termux, avoid complex interactions/scrolling as they crash the renderer
+            is_termux = False
+            try:
+                if "/com.termux/" in driver.service.path or os.path.exists("/data/data/com.termux"):
+                     is_termux = True
+            except:
+                pass
+
+            if not is_termux:
+                # Scroll to bottom to trigger lazy loading (Desktop only)
+                try:
+                    driver.execute_script("window.scrollTo(0, document.body.scrollHeight)")
+                    time.sleep(2)
+                except Exception as e:
+                    logger.warning(f"Could not scroll: {e}")
+            else:
+                logger.info("Termux detected: Skipping scroll/JS to prevent crash.")
+                time.sleep(2) # Just wait a bit for eager load
             
             # Get full HTML
             html = driver.page_source
