@@ -1,6 +1,7 @@
 import logging
 import sys
 import time
+import os
 from browser_fetcher import BrowserFetcher
 
 # Configure logging to stdout
