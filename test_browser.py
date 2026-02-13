@@ -2,6 +2,7 @@ import logging
 import sys
 import time
 import os
+import requests
 from browser_fetcher import BrowserFetcher
 
 # Configure logging to stdout
@@ -36,15 +37,31 @@ def test_browser():
     
     for name, url in targets:
         print(f"\n--- TESTING {name} ({url}) ---")
+        
+        # 1. Test Browser
+        print("[BROWSER] Attempting fetch...")
         try:
             html = fetcher.fetch(url)
             if html:
-                print(f"SUCCESS: Fetched {len(html)} bytes.")
+                print(f"[BROWSER] SUCCESS: Fetched {len(html)} bytes.")
             else:
-                print("FAILURE: Returned None.")
+                print("[BROWSER] FAILURE: Returned None.")
         except Exception as e:
-            print(f"CRASHED on {name}: {e}")
-            break # Stop on first crash
+            print(f"[BROWSER] CRASHED: {e}")
+
+        # 2. Test HTTP Fallback (simulating UnifiedFetcher)
+        print("[HTTP]    Attempting fetch (Fallback)...")
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                 print(f"[HTTP]    SUCCESS: Fetched {len(response.text)} bytes.")
+            else:
+                 print(f"[HTTP]    FAILURE: Status Code {response.status_code}")
+        except Exception as e:
+            print(f"[HTTP]    FAILED: {e}")
 
     # Print logs at the end if they exist
     log_path = "/data/data/com.termux/files/home/job_pipeline/chromedriver.log"
