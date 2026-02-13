@@ -65,6 +65,11 @@ class BrowserFetcher:
             options.add_argument("--disable-gpu")
             options.add_argument("--disable-software-rasterizer")
             options.add_argument("--disable-extensions")
+            options.add_argument("--single-process")
+            options.add_argument("--no-zygote")
+            options.add_argument("--disable-features=VizDisplayCompositor")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
             
             # Explicitly find chromedriver path
             chromedriver_path = shutil.which("chromedriver") or "/data/data/com.termux/files/usr/bin/chromedriver"
