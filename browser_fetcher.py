@@ -84,6 +84,12 @@ class BrowserFetcher:
             options.add_argument("--enable-features=NetworkServiceInProcess")
             options.add_argument("--blink-settings=imagesEnabled=false") # Save memory
             
+            # CLAUDE RECOMMENDATION: Evasion of Phantom Process Killer
+            options.add_argument("--single-process") # The Big One
+            options.add_argument("--in-process-gpu")
+            options.add_argument("--renderer-process-limit=1")
+            options.add_argument("--enable-low-end-device-mode")
+            
             # NUCLEAR OPTION: OTA (Over The Air) & Background updates disabled
             options.add_argument("--disable-breakpad")
             options.add_argument("--disable-client-side-phishing-detection")
@@ -99,7 +105,6 @@ class BrowserFetcher:
             # Use Mobile User Agent to get lighter pages
             mobile_ua = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             options.add_argument(f"user-agent={mobile_ua}")
-            # Note: --single-process removed as it causes instability on some pages
             
             # Explicitly find chromedriver path
             chromedriver_path = shutil.which("chromedriver") or "/data/data/com.termux/files/usr/bin/chromedriver"
