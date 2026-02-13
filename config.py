@@ -17,7 +17,22 @@ class Config:
     """Application configuration loaded from environment."""
     
     # Gemini API
-    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    # Support for multiple keys for rotation (comma-separated)
+    GEMINI_API_KEYS: list[str] = [
+        k.strip() for k in os.getenv("GEMINI_API_KEYS", "").split(",") if k.strip()
+    ]
+    
+    # Backwards compatibility: if GEMINI_API_KEYS is empty, try single GEMINI_API_KEY
+    if not GEMINI_API_KEYS:
+        _single_key = os.getenv("GEMINI_API_KEY", "")
+        if _single_key:
+            GEMINI_API_KEYS.append(_single_key)
+            
+    # For backward compatibility properties if needed elsewhere
+    @property
+    def GEMINI_API_KEY(self) -> str:
+        """Return the first available key or empty string."""
+        return self.GEMINI_API_KEYS[0] if self.GEMINI_API_KEYS else ""
     
     # Email settings
     EMAIL_SENDER: str = os.getenv("EMAIL_SENDER", "")
@@ -86,8 +101,8 @@ class Config:
         """Validate configuration and return list of errors."""
         errors = []
         
-        if not self.GEMINI_API_KEY:
-            errors.append("GEMINI_API_KEY is required")
+        if not self.GEMINI_API_KEYS:
+            errors.append("GEMINI_API_KEYS (or GEMINI_API_KEY) is required")
         
         if not self.EMAIL_SENDER:
             errors.append("EMAIL_SENDER is required")
