@@ -6,6 +6,9 @@ Supports both Resend API and SMTP for sending notifications.
 import os
 from datetime import datetime
 from config import config
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 # Try to import resend
 try:
@@ -104,7 +107,7 @@ class Notifier:
     def _send_resend(self, jobs: list[dict]) -> bool:
         """Send email using Resend API."""
         if not RESEND_AVAILABLE:
-            print("[Notifier] Resend not installed. Run: pip install resend")
+            logger.error("Resend not installed. Run: pip install resend")
             return False
         
         try:
@@ -117,11 +120,11 @@ class Notifier:
                 "html": self._create_email_html(jobs)
             })
             
-            print(f"[Notifier] Email sent via Resend to {self.recipient}")
+            logger.info(f"Email sent via Resend to {self.recipient}")
             return True
             
         except Exception as e:
-            print(f"[Notifier] Resend failed: {e}")
+            logger.error(f"Resend failed: {e}")
             return False
     
     def _send_smtp(self, jobs: list[dict]) -> bool:
@@ -146,11 +149,11 @@ class Notifier:
                 server.login(self.sender, self.password)
                 server.send_message(msg)
             
-            print(f"[Notifier] Email sent via SMTP to {self.recipient}")
+            logger.info(f"Email sent via SMTP to {self.recipient}")
             return True
             
         except Exception as e:
-            print(f"[Notifier] SMTP failed: {e}")
+            logger.error(f"SMTP failed: {e}")
             return False
     
     def send(self, jobs: list[dict]) -> bool:
@@ -165,11 +168,11 @@ class Notifier:
             True if email sent successfully, False otherwise
         """
         if not jobs:
-            print("[Notifier] No jobs to notify about")
+            logger.debug("No jobs to notify about")
             return True
         
         if not self.recipient:
-            print("[Notifier] No recipient configured")
+            logger.error("No recipient configured")
             return False
         
         # Try Resend first if API key is configured
@@ -180,7 +183,7 @@ class Notifier:
         if self.sender and self.password:
             return self._send_smtp(jobs)
         
-        print("[Notifier] No email configuration found (set RESEND_API_KEY or SMTP credentials)")
+        logger.error("No email configuration found (set RESEND_API_KEY or SMTP credentials)")
         return False
 
 

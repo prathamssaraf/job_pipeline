@@ -9,6 +9,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from config import config
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class Storage:
@@ -63,9 +66,12 @@ class Storage:
     @staticmethod
     def generate_job_id(job: dict) -> str:
         """
-        Generate unique ID for a job based on title, company, and URL.
+        Generate unique ID for a job based on title and URL.
+        
+        Note: Company is excluded because AI may extract it inconsistently
+        (e.g., "Uber" vs "Uber Careers"), causing duplicate entries.
         """
-        unique_str = f"{job.get('title', '')}|{job.get('company', '')}|{job.get('url', '')}"
+        unique_str = f"{job.get('title', '')}|{job.get('url', '')}"
         return hashlib.md5(unique_str.encode()).hexdigest()
     
     def is_new_job(self, job: dict) -> bool:
@@ -147,11 +153,26 @@ class Storage:
             result = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()
             return result[0]
     
-    def clear_all(self):
-        """Clear all jobs from database. Use with caution!"""
+    def clear_all(self, confirmation: str = ""):
+        """
+        Clear all jobs from database. DANGEROUS operation!
+        
+        To confirm, you must pass confirmation="DELETE_ALL_JOBS_PERMANENTLY"
+        
+        This method should NEVER be called in normal operation.
+        Jobs should never be automatically deleted.
+        """
+        if confirmation != "DELETE_ALL_JOBS_PERMANENTLY":
+            raise ValueError(
+                "Deletion not confirmed. To clear all jobs, you must call:\n"
+                "  storage.clear_all(confirmation='DELETE_ALL_JOBS_PERMANENTLY')\n"
+                "⚠️  WARNING: This will permanently delete ALL job records!"
+            )
+        
         with self._get_connection() as conn:
             conn.execute("DELETE FROM jobs")
             conn.commit()
+            logger.warning("⚠️  ALL JOBS DELETED - Database cleared")
     
     # ============================================================
     # SOURCE MANAGEMENT (for dashboard)

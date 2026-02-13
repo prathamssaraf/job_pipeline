@@ -30,14 +30,16 @@ logger = get_logger(__name__)
 class BrowserFetcher:
     """Fetches HTML from pages using headless Selenium."""
     
-    def __init__(self, timeout: int = 30, wait_for_content: int = 5):
+    def __init__(self, timeout: int = 30, wait_for_content: int = 5, service_args: Optional[list] = None):
         """
         Args:
             timeout: Page load timeout in seconds
             wait_for_content: Extra time to wait for JS content to load
+            service_args: Optional list of args for chromedriver service
         """
         self.timeout = timeout
         self.wait_for_content = wait_for_content
+        self.service_args = service_args or []
     
     def _get_driver(self):
         """Create headless Chrome driver."""
@@ -89,11 +91,11 @@ class BrowserFetcher:
             if not os.path.exists(chromedriver_path):
                 logger.error(f"Chromedriver NOT FOUND at {chromedriver_path}")
             
-            service = Service(executable_path=chromedriver_path)
+            service = Service(executable_path=chromedriver_path, service_args=self.service_args)
         else:
             # Standard desktop environment
             # Auto-download and manage chromedriver
-            service = Service(ChromeDriverManager().install())
+            service = Service(ChromeDriverManager().install(), service_args=self.service_args)
             
         return webdriver.Chrome(service=service, options=options)
     

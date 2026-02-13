@@ -8,6 +8,9 @@ from dataclasses import dataclass
 
 from fetcher import fetcher
 from browser_fetcher import browser_fetcher, SELENIUM_AVAILABLE
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -53,28 +56,28 @@ class UnifiedFetcher:
         
         if requires_browser and SELENIUM_AVAILABLE:
             # Try browser first for JS-heavy sites
-            print(f"[UnifiedFetcher] Using browser for: {url}")
+            logger.info(f"Using browser for: {url}")
             html = browser_fetcher.fetch(url)
             method_used = "browser"
             
             # Fallback to HTTP if browser fails
             if not html and self.enable_fallback:
-                print(f"[UnifiedFetcher] Browser failed, falling back to HTTP: {url}")
+                logger.warning(f"Browser failed, falling back to HTTP: {url}")
                 html = fetcher.fetch(url)
                 method_used = "http (fallback)"
         else:
             # Use fast HTTP fetch for static sites
             if requires_browser and not SELENIUM_AVAILABLE:
-                print(f"[UnifiedFetcher] Selenium not available, using HTTP: {url}")
+                logger.warning(f"Selenium not available, using HTTP: {url}")
             else:
-                print(f"[UnifiedFetcher] Using HTTP for: {url}")
+                logger.debug(f"Using HTTP for: {url}")
             html = fetcher.fetch(url)
             method_used = "http"
         
         if html:
-            print(f"[UnifiedFetcher] Success ({method_used}): {len(html)} bytes from {url}")
+            logger.info(f"Success ({method_used}): {len(html)} bytes from {url}")
         else:
-            print(f"[UnifiedFetcher] Failed to fetch: {url}")
+            logger.error(f"Failed to fetch: {url}")
         
         return html
     

@@ -6,6 +6,9 @@ Fetches job pages with proper headers and retry logic.
 import time
 import requests
 from typing import Optional
+from logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class Fetcher:
@@ -45,15 +48,15 @@ class Fetcher:
                 return response.text
                 
             except requests.RequestException as e:
-                print(f"[Fetcher] Attempt {attempt + 1}/{self.max_retries} failed for {url}: {e}")
+                logger.warning(f"Attempt {attempt + 1}/{self.max_retries} failed for {url}: {e}")
                 
                 if attempt < self.max_retries - 1:
                     # Exponential backoff
                     wait_time = (2 ** attempt) * self.delay
-                    print(f"[Fetcher] Retrying in {wait_time:.1f} seconds...")
+                    logger.debug(f"Retrying in {wait_time:.1f} seconds...")
                     time.sleep(wait_time)
         
-        print(f"[Fetcher] Failed to fetch {url} after {self.max_retries} attempts")
+        logger.error(f"Failed to fetch {url} after {self.max_retries} attempts")
         return None
     
     def fetch_multiple(self, urls: list[str]) -> dict[str, Optional[str]]:

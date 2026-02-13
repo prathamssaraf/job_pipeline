@@ -15,9 +15,13 @@ def test_browser():
     print("TESTING BROWSER FETCHER ON TERMUX")
     print("="*50)
     
-    # Initialize fetcher
     try:
-        fetcher = BrowserFetcher()
+        # Enable verbose logging for debugging
+        service_args = ["--verbose", "--log-path=/data/data/com.termux/files/home/job_pipeline/chromedriver.log"]
+        fetcher = BrowserFetcher(service_args=service_args)
+        
+        print(f"DEBUG: Logging enabled at /data/data/com.termux/files/home/job_pipeline/chromedriver.log")
+        
     except Exception as e:
         print(f"FAILED to initialize BrowserFetcher: {e}")
         return
