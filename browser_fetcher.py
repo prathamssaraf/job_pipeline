@@ -63,7 +63,14 @@ class BrowserFetcher:
             options.add_argument("--disable-dev-shm-usage")
             options.add_argument("--remote-debugging-port=9222")
             
-            service = Service("/data/data/com.termux/files/usr/bin/chromedriver")
+            # Explicitly find chromedriver path
+            chromedriver_path = shutil.which("chromedriver") or "/data/data/com.termux/files/usr/bin/chromedriver"
+            logger.info(f"Termux: Using chromedriver at {chromedriver_path}")
+            
+            if not os.path.exists(chromedriver_path):
+                logger.error(f"Chromedriver NOT FOUND at {chromedriver_path}")
+            
+            service = Service(executable_path=chromedriver_path)
         else:
             # Standard desktop environment
             # Auto-download and manage chromedriver
