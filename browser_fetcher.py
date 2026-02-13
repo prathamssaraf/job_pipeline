@@ -84,6 +84,18 @@ class BrowserFetcher:
             options.add_argument("--enable-features=NetworkServiceInProcess")
             options.add_argument("--blink-settings=imagesEnabled=false") # Save memory
             
+            # NUCLEAR OPTION: OTA (Over The Air) & Background updates disabled
+            options.add_argument("--disable-breakpad")
+            options.add_argument("--disable-client-side-phishing-detection")
+            options.add_argument("--disable-component-extensions-with-background-pages")
+            options.add_argument("--disable-default-apps")
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-background-networking")
+            
+            # CRITICAL MEMORY SAVERS: Disable Site Isolation (huge RAM saver)
+            options.add_argument("--disable-site-isolation-trials")
+            options.add_argument("--disable-features=IsolateOrigins,site-per-process")
+            
             # Use Mobile User Agent to get lighter pages
             mobile_ua = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
             options.add_argument(f"user-agent={mobile_ua}")
