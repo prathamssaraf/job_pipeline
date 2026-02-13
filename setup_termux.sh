@@ -6,7 +6,7 @@ echo "Installing system packages..."
 pkg update -y && pkg upgrade -y
 pkg install -y python git rust binutils build-essential make clang
 pkg install -y tur-repo 
-pkg install -y python-grpcio python-numpy  # Pre-built binaries are much faster/safer
+pkg install -y python-grpcio python-numpy python-cryptography # Pre-built binaries are much faster/safer
 pkg install -y chromium chromedriver
 pkg install -y libjpeg-turbo libpng
 
