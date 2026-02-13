@@ -22,6 +22,10 @@ export GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1
 export GRPC_PYTHON_BUILD_SYSTEM_ZLIB=1
 # Fix for cryptography/rust build
 export ANDROID_API_LEVEL=24
+export CC="clang"
+export CXX="clang++"
+export CARGO_BUILD_TARGET="aarch64-linux-android"
+
 
 
 pip install --upgrade pip
