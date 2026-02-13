@@ -5,8 +5,8 @@
 echo "Installing system packages..."
 pkg update -y && pkg upgrade -y
 pkg install -y python git rust binutils build-essential make clang
-pkg install -y tur-repo libffi openssl-tool openssl
-# IMPORTANT: Update repos after adding tur-repo to find chromium
+pkg install -y tur-repo x11-repo libffi openssl-tool openssl
+# IMPORTANT: Update repos after adding repos to find chromium
 pkg update -y 
 
 pkg install -y python-grpcio python-numpy python-cryptography
