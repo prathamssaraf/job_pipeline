@@ -61,6 +61,10 @@ class BrowserFetcher:
         # Check if running in Termux (Android)
         if hasattr(os, 'environ') and 'PREFIX' in os.environ and 'com.termux' in os.environ.get('PREFIX', ''):
             logger.info("Termux environment detected. Using system chromedriver.")
+            
+            # CRITICAL FIX: Kill DBus attempts which cause crashes/hangs
+            os.environ['DBUS_SESSION_BUS_ADDRESS'] = '/dev/null'
+            
             # In Termux, we must use the system-installed chromedriver
             # pkg install chromium chromedriver
             options.binary_location = "/data/data/com.termux/files/usr/bin/chromium-browser"
