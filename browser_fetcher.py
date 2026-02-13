@@ -80,6 +80,7 @@ class BrowserFetcher:
             options.add_argument("--disable-sync")
             options.add_argument("--disable-cloud-import")
             options.add_argument("--disable-gpu-compositing")
+            options.add_argument("--disable-accelerated-2d-canvas")
             options.add_argument("--enable-features=NetworkServiceInProcess")
             options.add_argument("--blink-settings=imagesEnabled=false") # Save memory
             

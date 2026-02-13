@@ -51,6 +51,19 @@ def test_browser():
             
     except Exception as e:
         print(f"\nCRASHED with error: {e}")
+        
+        # Auto-print log for debugging
+        log_path = "/data/data/com.termux/files/home/job_pipeline/chromedriver.log"
+        if os.path.exists(log_path):
+            print("\n" + "="*20 + " CHROMEDRIVER LOG (LAST 20 LINES) " + "="*20)
+            try:
+                with open(log_path, 'r', errors='ignore') as f:
+                    lines = f.readlines()
+                    for line in lines[-20:]:
+                        print(line.strip())
+            except Exception as log_err:
+                print(f"Could not read log file: {log_err}")
+            print("="*60)
 
 if __name__ == "__main__":
     test_browser()
