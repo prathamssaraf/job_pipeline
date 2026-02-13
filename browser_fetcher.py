@@ -42,9 +42,15 @@ class BrowserFetcher:
     def _get_driver(self):
         """Create headless Chrome driver."""
         options = Options()
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
+        options.add_argument("--headless") # Revert to legacy headless (lighter?)
         options.add_argument("--no-sandbox")
+        
+        # Aggressive memory saving
+        options.add_argument("--disk-cache-size=1") 
+        options.add_argument("--media-cache-size=1")
+        
+        # Standard linux flags
+        options.add_argument("--disable-gpu")
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--window-size=800,600") # Smaller window = less RAM
         options.page_load_strategy = 'eager' # Don't wait for all sub-resources (images, css)
