@@ -22,7 +22,8 @@ def test_browser():
         print(f"FAILED to initialize BrowserFetcher: {e}")
         return
 
-    url = "https://example.com"
+    # This URL previously crashed the browser
+    url = "https://careers.salesforce.com/en/jobs/?search=&country=United+States+of+America&team=Software+Engineering&jobtype=New+Grads&pagesize=20#results"
     
     print(f"Attempting to fetch: {url}")
     print("This will force the use of Chromium/Chromedriver...")
