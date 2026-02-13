@@ -30,7 +30,7 @@ def test_browser():
     targets = [
         ("LIGHT", "https://example.com"),
         ("MEDIUM", "https://www.google.com"),
-        ("HEAVY", "https://careers.salesforce.com/en/jobs/?search=&country=United+States+of+America&team=Software+Engineering&jobtype=New+Grads&pagesize=20#results")
+        ("HEAVY", "https://www.metacareers.com/jobsearch?teams[0]=University%20Grad%20-%20Business&teams[1]=University%20Grad%20-%20Engineering%2C%20Tech%20%26%20Design&teams[2]=University%20Grad%20-%20PhD%20%26%20Postdoc&sort_by_new=true&offices[0]=North%20America")
     ]
     
     for name, url in targets:
