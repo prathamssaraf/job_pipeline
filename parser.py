@@ -60,8 +60,7 @@ HTML to analyze:'''
         # Configure genai with the new key
         try:
             genai.configure(api_key=new_key)
-            # Switch to 1.5-flash for better stability/quota on free tier
-            self.model = genai.GenerativeModel("gemini-1.5-flash")
+            self.model = genai.GenerativeModel("gemini-2.5-flash-lite")
             self._current_key_val = new_key
             logger.info(f"Initialized Gemini with key #{self._current_key_idx + 1}/{len(keys)} (ending in ...{new_key[-4:]})")
             return True
@@ -220,13 +219,10 @@ HTML to analyze:'''
             Combined list of all jobs from all pages
         """
         all_jobs = []
-        import time
         for url, html in html_dict.items():
             if html:
                 jobs = self.parse(html, source_url=url)
                 all_jobs.extend(jobs)
-                # Rate limit to avoid 429 (Quota exceeded)
-                time.sleep(4)
         return all_jobs
 
 
