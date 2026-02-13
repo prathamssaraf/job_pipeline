@@ -18,6 +18,14 @@ try:
 except ImportError:
     SELENIUM_AVAILABLE = False
 
+import os
+import shutil
+
+
+from logger import get_logger
+
+logger = get_logger(__name__)
+
 
 class BrowserFetcher:
     """Fetches HTML from pages using headless Selenium."""
@@ -41,8 +49,26 @@ class BrowserFetcher:
         options.add_argument("--window-size=1920,1080")
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
-        # Auto-download and manage chromedriver
-        service = Service(ChromeDriverManager().install())
+        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        
+        # Check if running in Termux (Android)
+        if hasattr(os, 'environ') and 'PREFIX' in os.environ and 'com.termux' in os.environ.get('PREFIX', ''):
+            logger.info("Termux environment detected. Using system chromedriver.")
+            # In Termux, we must use the system-installed chromedriver
+            # pkg install chromium chromedriver
+            options.binary_location = "/data/data/com.termux/files/usr/bin/chromium-browser"
+            
+            # Specific flags for Termux/Android
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--remote-debugging-port=9222")
+            
+            service = Service("/data/data/com.termux/files/usr/bin/chromedriver")
+        else:
+            # Standard desktop environment
+            # Auto-download and manage chromedriver
+            service = Service(ChromeDriverManager().install())
+            
         return webdriver.Chrome(service=service, options=options)
     
     def fetch(self, url: str) -> Optional[str]:
@@ -56,12 +82,12 @@ class BrowserFetcher:
             Full HTML content after JavaScript execution, or None if failed
         """
         if not SELENIUM_AVAILABLE:
-            print("[BrowserFetcher] Selenium not installed. Run: pip install selenium webdriver-manager")
+            logger.error("Selenium not installed. Run: pip install selenium webdriver-manager")
             return None
         
         driver = None
         try:
-            print(f"[BrowserFetcher] Loading {url}...")
+            logger.debug(f"Loading {url} with headless browser...")
             driver = self._get_driver()
             driver.set_page_load_timeout(self.timeout)
             
@@ -78,14 +104,14 @@ class BrowserFetcher:
             # Get full HTML
             html = driver.page_source
             
-            print(f"[BrowserFetcher] Fetched {len(html)} bytes from {url}")
+            logger.info(f"Fetched {len(html)} bytes from {url}")
             return html
             
         except TimeoutException:
-            print(f"[BrowserFetcher] Timeout loading {url}")
+            logger.error(f"Timeout loading {url}")
             return None
         except Exception as e:
-            print(f"[BrowserFetcher] Error fetching {url}: {e}")
+            logger.error(f"Error fetching {url}: {e}")
             return None
         finally:
             if driver:

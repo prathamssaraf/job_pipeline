@@ -10,10 +10,13 @@ from datetime import datetime
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
+from logger import get_logger
 from storage import storage
 from unified_fetcher import unified_fetcher, JobSource
 from parser import parser
 from notifier import notifier
+
+logger = get_logger(__name__)
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 CORS(app)
@@ -181,7 +184,7 @@ def update_scheduler():
 
 def run_pipeline_once():
     """Run the job tracking pipeline once."""
-    print(f"\n[Server] Running pipeline at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"Running pipeline at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Reset daily stats if it's a new day
     if scheduler_state["last_reset"] != datetime.now().date():
@@ -217,16 +220,29 @@ def run_pipeline_once():
     # Find new jobs
     new_jobs = storage.find_new_jobs(all_jobs)
     
+    # Save new jobs and notify
     if new_jobs:
         storage.save_jobs(new_jobs)
         notifier.send(new_jobs)
-        
-        # Update source stats
-        for source in sources:
-            job_count = sum(1 for j in all_jobs if source['url'] in j.get('source_url', ''))
-            storage.update_source_stats(source['id'], job_count)
-            
         scheduler_state["changes_detected_today"] += len(new_jobs)
+    
+    # Update source stats - FIXED: Now outside 'if new_jobs' block
+    # Only update stats for sources that successfully fetched
+    for source in sources:
+        source_url = source['url']
+        
+        # Check if this source was successfully fetched
+        if html_dict.get(source_url) is not None:
+            # Count jobs from this source in the parsed results
+            job_count_this_run = sum(1 for j in all_jobs if source_url in j.get('source_url', ''))
+            
+            # Update stats only for successful fetches
+            # This prevents overwriting with 0 when a source fails
+            storage.update_source_stats(source['id'], job_count_this_run)
+            logger.info(f"Updated {source['name']}: {job_count_this_run} jobs found in this run")
+        else:
+            # Source failed to fetch - leave stats unchanged
+            logger.warning(f"Skipped stats update for {source['name']} (fetch failed)")
     
     scheduler_state["last_run"] = datetime.now().isoformat()
     
@@ -234,7 +250,9 @@ def run_pipeline_once():
         "success": True,
         "message": f"Found {len(new_jobs)} new jobs",
         "new_jobs": len(new_jobs),
-        "total_parsed": len(all_jobs)
+        "total_parsed": len(all_jobs),
+        "sources_checked": len(sources),
+        "sources_successful": successful
     }
 
 
@@ -257,7 +275,7 @@ def scheduler_loop():
             try:
                 run_pipeline_once()
             except Exception as e:
-                print(f"[Scheduler] Error: {e}")
+                logger.error(f"Scheduler error: {e}", exc_info=True)
 
 
 def start_scheduler():
@@ -266,14 +284,14 @@ def start_scheduler():
         scheduler_state["running"] = True
         scheduler_state["thread"] = threading.Thread(target=scheduler_loop, daemon=True)
         scheduler_state["thread"].start()
-        print(f"[Scheduler] Started - running every {scheduler_state['interval_minutes']} minutes")
+        logger.info(f"Scheduler started - running every {scheduler_state['interval_minutes']} minutes")
 
 
 def stop_scheduler():
     """Stop the background scheduler."""
     scheduler_state["running"] = False
     scheduler_state["next_run"] = None
-    print("[Scheduler] Stopped")
+    logger.info("Scheduler stopped")
 
 
 # ============================================================
@@ -281,12 +299,12 @@ def stop_scheduler():
 # ============================================================
 
 if __name__ == '__main__':
-    print("\n" + "="*50)
-    print("  Job Pipeline Tracker - Dashboard")
-    print("  http://localhost:5000")
-    print("="*50 + "\n")
+    logger.info("=" * 70)
+    logger.info("Job Pipeline Tracker - Dashboard")
+    logger.info("http://localhost:5000")
+    logger.info("=" * 70)
     
     # Start scheduler by default
     start_scheduler()
     
-    app.run(debug=True, port=5000, use_reloader=False)
+    app.run(host='0.0.0.0', debug=True, port=5000, use_reloader=False)
