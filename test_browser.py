@@ -52,14 +52,29 @@ def test_browser():
         # 2. Test HTTP Fallback (simulating UnifiedFetcher)
         print("[HTTP]    Attempting fetch (Fallback)...")
         try:
+            # Better headers to avoid 400 Bad Request
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+                "Sec-Ch-Ua-Mobile": "?0",
+                "Sec-Ch-Ua-Platform": '"Windows"',
+                "Upgrade-Insecure-Requests": "1"
             }
-            response = requests.get(url, headers=headers, timeout=10)
+            
+            # Temporary SSL Verification fix for Termux
+            verify_ssl = True
+            if os.path.exists("/data/data/com.termux/files/usr/etc/tls/cert.pem"):
+                os.environ["SSL_CERT_FILE"] = "/data/data/com.termux/files/usr/etc/tls/cert.pem"
+            
+            response = requests.get(url, headers=headers, timeout=15)
+            
             if response.status_code == 200:
                  print(f"[HTTP]    SUCCESS: Fetched {len(response.text)} bytes.")
             else:
                  print(f"[HTTP]    FAILURE: Status Code {response.status_code}")
+                 print(f"[HTTP]    Response headers: {response.headers}")
         except Exception as e:
             print(f"[HTTP]    FAILED: {e}")
 
