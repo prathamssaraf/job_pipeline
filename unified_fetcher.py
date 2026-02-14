@@ -5,6 +5,7 @@ Routes between browser and HTTP fetching based on source configuration.
 
 from typing import Optional
 from dataclasses import dataclass
+import os
 
 from fetcher import fetcher
 from browser_fetcher import browser_fetcher, SELENIUM_AVAILABLE
@@ -54,8 +55,16 @@ class UnifiedFetcher:
         html = None
         method_used = None
         
-        if requires_browser and SELENIUM_AVAILABLE:
-            # Try browser first for JS-heavy sites
+        # Check for Termux environment
+        is_termux = False
+        try:
+            if os.path.exists("/data/data/com.termux"):
+                is_termux = True
+        except:
+            pass
+        
+        if requires_browser and SELENIUM_AVAILABLE and not is_termux:
+            # Try browser first for JS-heavy sites (Only on Desktop/Non-Termux)
             logger.info(f"Using browser for: {url}")
             html = browser_fetcher.fetch(url)
             method_used = "browser"
@@ -66,9 +75,12 @@ class UnifiedFetcher:
                 html = fetcher.fetch(url)
                 method_used = "http (fallback)"
         else:
-            # Use fast HTTP fetch for static sites
-            if requires_browser and not SELENIUM_AVAILABLE:
-                logger.warning(f"Selenium not available, using HTTP: {url}")
+            # Use fast HTTP fetch for static sites OR if we are on Termux
+            if requires_browser:
+                if is_termux:
+                    logger.info(f"Termux detected: Bypassing unstable browser, using robust HTTP fetch for: {url}")
+                elif not SELENIUM_AVAILABLE:
+                    logger.warning(f"Selenium not available, using HTTP: {url}")
             else:
                 logger.debug(f"Using HTTP for: {url}")
             html = fetcher.fetch(url)

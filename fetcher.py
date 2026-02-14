@@ -5,6 +5,7 @@ Fetches job pages with proper headers and retry logic.
 
 import time
 import requests
+import os
 from typing import Optional
 from logger import get_logger
 
@@ -14,10 +15,19 @@ logger = get_logger(__name__)
 class Fetcher:
     """Fetches HTML content from job pages."""
     
+    # Robust headers mimicking a real Chrome browser on Windows
     DEFAULT_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1"
     }
     
     def __init__(self, timeout: int = 30, max_retries: int = 3, delay_between_requests: float = 2.0):
@@ -26,7 +36,13 @@ class Fetcher:
         self.delay = delay_between_requests
         self.session = requests.Session()
         self.session.headers.update(self.DEFAULT_HEADERS)
-    
+        
+        # Termux SSL Certificate Fix
+        # Requests often fails to find the certs on Termux, so we point it explicitly
+        if os.path.exists("/data/data/com.termux/files/usr/etc/tls/cert.pem"):
+             os.environ["SSL_CERT_FILE"] = "/data/data/com.termux/files/usr/etc/tls/cert.pem"
+             logger.debug("Termux SSL fix applied: SSL_CERT_FILE set.")
+
     def fetch(self, url: str) -> Optional[str]:
         """
         Fetch HTML content from a URL.
@@ -37,6 +53,10 @@ class Fetcher:
         Returns:
             HTML content as string, or None if fetch failed
         """
+        # Fix common URL issues (like unencoded brackets in Meta URLs)
+        if "[" in url and "%5B" not in url:
+            url = url.replace("[", "%5B").replace("]", "%5D")
+            
         for attempt in range(self.max_retries):
             try:
                 response = self.session.get(url, timeout=self.timeout)
