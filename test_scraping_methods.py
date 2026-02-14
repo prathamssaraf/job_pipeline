@@ -79,26 +79,58 @@ def test_curl(url):
     except Exception as e:
         return False, str(e)
 
+
+def test_meta_specialized():
+    log("Method: Requests (Meta Specialized - Params Dict)")
+    base_url = "https://www.metacareers.com/jobsearch"
+    # Reconstruct params to ensure proper encoding of [ ]
+    params = {
+        "teams[0]": "University Grad - Business",
+        "teams[1]": "University Grad - Engineering, Tech & Design",
+        "teams[2]": "University Grad - PhD & Postdoc",
+        "sort_by_new": "true",
+        "offices[0]": "North America"
+    }
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1"
+    }
+
+    try:
+        resp = requests.get(base_url, params=params, headers=headers, timeout=15)
+        if resp.status_code == 200:
+            return True, f"Success ({len(resp.text)} bytes) - Final URL: {resp.url}"
+        return False, f"Status {resp.status_code} - URL: {resp.url}"
+    except Exception as e:
+        return False, str(e)
+
 def main():
     print("=== STARTING SCRAPING TEST ===")
-    for name, url in TARGETS:
-        print(f"\nTarget: {name}")
-        print(f"URL: {url}")
-        print("-" * 30)
-        
-        methods = [
-            test_requests_desktop,
-            test_requests_mobile,
-            test_urllib,
-            test_curl
-        ]
-        
-        for method in methods:
-            success, msg = method(url)
-            status = "✅ PASS" if success else "❌ FAIL"
-            print(f"{status} | {msg}")
     
-    print("\n=== TEST COMPLETE ===")
+    # Test Salesforce (Standard Methods)
+    sf_url = TARGETS[0][1]
+    print(f"\nTarget: Salesforce")
+    test_requests_desktop(sf_url) # Just test one since we know it works
+    
+    # Test Meta (Standard + Specialized)
+    print(f"\nTarget: Meta")
+    print("-" * 30)
+    
+    # 1. Specialized Param Encoding
+    success, msg = test_meta_specialized()
+    print(f"{'✅ PASS' if success else '❌ FAIL'} | {msg}")
+    
+    # 2. Try simple Mobile User Agent on Base URL
+    log("Method: Mobile UA on Base URL (No Params)")
+    test_requests_mobile("https://www.metacareers.com/jobsearch")
 
 if __name__ == "__main__":
     main()
+
