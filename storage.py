@@ -5,6 +5,7 @@ Handles persistence of seen jobs and new job detection.
 
 import sqlite3
 import hashlib
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -66,12 +67,21 @@ class Storage:
     @staticmethod
     def generate_job_id(job: dict) -> str:
         """
-        Generate unique ID for a job based on title and URL.
-        
-        Note: Company is excluded because AI may extract it inconsistently
-        (e.g., "Uber" vs "Uber Careers"), causing duplicate entries.
+        Generate unique ID for a job based on normalized title and URL.
+        Aggressively normalizes to handle slight variations (spaces, params, casing).
         """
-        unique_str = f"{job.get('title', '')}|{job.get('url', '')}"
+        # 1. Normalize Title: lowercase, keep only alphanumeric (removes spaces, -, etc)
+        # "Software Engineer " -> "softwareengineer"
+        # "Software Engineer - Backend" -> "softwareengineerbackend"
+        raw_title = job.get('title', '')
+        normalized_title = re.sub(r'[^a-z0-9]', '', raw_title.lower())
+        
+        # 2. Normalize URL: remove query params, fragments, trailing slashes
+        # "example.com/job?ref=123" -> "example.com/job"
+        raw_url = job.get('url', '')
+        normalized_url = raw_url.split('?')[0].split('#')[0].rstrip('/').lower()
+        
+        unique_str = f"{normalized_title}|{normalized_url}"
         return hashlib.md5(unique_str.encode()).hexdigest()
     
     def is_new_job(self, job: dict) -> bool:

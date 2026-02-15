@@ -17,14 +17,19 @@ class Parser:
     
     EXTRACTION_PROMPT = '''You are a job listing extractor. Analyze the HTML below and extract ALL job postings you can find.
 
+STRICT INSTRUCTIONS:
+1. EXTRACT TITLES EXACTLY AS THEY APPEAR. Do not capitalize, rephrase, beautify, or remove information.
+2. Do not infer or invent jobs. If a job is not explicitly listed, do not include it.
+3. If no jobs are found, return an empty array [].
+
 For each job, extract:
-- title: The job title
+- title: The job title (EXACT MATCH)
 - company: Company name (if visible, otherwise use "Unknown")
 - location: Job location (if visible, otherwise use "Not specified")
 - url: Link to the job posting (if available, otherwise use "")
 - description: Brief description or requirements snippet (first 200 chars)
 
-Return ONLY a valid JSON array. If no jobs found, return empty array [].
+Return ONLY a valid JSON array.
 
 Example output:
 [
@@ -34,6 +39,22 @@ Example output:
 
 HTML to analyze:'''
 
+    VERIFICATION_PROMPT = '''You are a Truth Verification AI. 
+I will provide you with a list of jobs extracted from the HTML below.
+Your task is to VERIFY that each job actually exists in the provided HTML.
+
+Rules:
+1. Check the HTML for the specific Job Title and Company.
+2. If the job is real and present, keep it.
+3. If the job is a hallucination, duplicate, or not present, REMOVE IT.
+4. Return the filtered list of valid jobs as a JSON array.
+
+Jobs to Verify:
+{jobs_json}
+
+HTML Context:
+'''
+
     def __init__(self):
         self.model = None
         self._current_key_val = None
@@ -42,22 +63,14 @@ HTML to analyze:'''
     def _initialize_client(self, key_idx: int = 0) -> bool:
         """
         Initialize Gemini client with a specific key.
-        
-        Args:
-            key_idx: Index of the key to use from config.GEMINI_API_KEYS
-            
-        Returns:
-            True if initialization successful with a new key, False otherwise.
         """
         keys = config.GEMINI_API_KEYS
         if not keys:
             raise ValueError("No GEMINI_API_KEYS configured")
         
-        # Ensure index is valid (circular)
         self._current_key_idx = key_idx % len(keys)
         new_key = keys[self._current_key_idx]
         
-        # Configure genai with the new key
         try:
             genai.configure(api_key=new_key)
             self.model = genai.GenerativeModel("gemini-2.5-flash-lite")
@@ -69,12 +82,7 @@ HTML to analyze:'''
             return False
 
     def _rotate_key(self) -> bool:
-        """
-        Switch to the next available API key.
-        
-        Returns:
-            True if rotated to a new key, False if all keys exhausted/failed (though currently circular).
-        """
+        """Switch to the next available API key."""
         keys = config.GEMINI_API_KEYS
         if not keys or len(keys) <= 1:
             logger.warning("Cannot rotate: Only one key available.")
@@ -87,47 +95,67 @@ HTML to analyze:'''
     def parse(self, html: str, source_url: str = "") -> list[dict]:
         """
         Parse HTML and extract job listings using Gemini with automatic key rotation.
+        Includes a self-correction/verification pass.
         """
-        if self.model is None:
-            self._initialize_client()
+        # 1. Initial Extraction
+        jobs = self._generate_with_retry(self.EXTRACTION_PROMPT + "\n\n" + self._clean_html(html))
         
-        # Strip script and style tags to reduce size
+        if not jobs:
+            return []
+            
+        # Add source URL to initial results
+        for job in jobs:
+            job["source_url"] = source_url
+
+        # 2. Verification Pass (Consensus Check)
+        # Only verify if we actually found something
+        logger.info(f"Initial pass found {len(jobs)} jobs. Verifying...")
+        verified_jobs = self._verify_integrity(jobs, self._clean_html(html))
+        
+        # Re-attach source URL
+        for job in verified_jobs:
+             if "source_url" not in job:
+                 job["source_url"] = source_url
+                 
+        logger.info(f"Verification complete. Valid jobs: {len(verified_jobs)} (Filtered: {len(jobs) - len(verified_jobs)})")
+        return verified_jobs
+
+    def _clean_html(self, html: str) -> str:
+        """Clean HTML for token efficiency."""
         import re
         html = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.DOTALL | re.IGNORECASE)
         html = re.sub(r'<!--.*?-->', '', html, flags=re.DOTALL)
         html = re.sub(r'\s+', ' ', html)
         
-        logger.debug(f"HTML cleaned to {len(html)} chars")
-        
         max_html_length = 800000 
         if len(html) > max_html_length:
             html = html[:max_html_length]
-            logger.warning(f"HTML truncated to {max_html_length} chars")
-        
-        prompt = self.EXTRACTION_PROMPT + "\n\n" + html
-        
-        # Retry loop for key rotation
+        return html
+
+    def _generate_with_retry(self, prompt: str) -> list[dict]:
+        """
+        Helper to run generation with retry logic (key rotation).
+        Returns parsed list of dicts.
+        """
+        if self.model is None:
+            self._initialize_client()
+            
         max_retries = len(config.GEMINI_API_KEYS)
         attempts = 0
         
         while attempts < max_retries:
             try:
                 response = self.model.generate_content(prompt)
-                
-                # If we get here, the call succeeded. Process response.
-                return self._process_response(response, source_url)
+                return self._process_response(response)
                 
             except Exception as e:
-                # Check for likely quota/auth errors that warrant rotation
                 error_str = str(e).lower()
                 is_quota_error = "429" in error_str or "resourceexhausted" in error_str or "quota" in error_str
                 is_auth_error = "403" in error_str or "permissiondenied" in error_str or "api_key" in error_str
                 
                 if is_quota_error or is_auth_error:
                     logger.warning(f"API Error (Attempt {attempts + 1}/{max_retries}): {e}")
-                    
-                    # Try to rotate. If rotation fails (e.g. only 1 key), re-raise
                     if self._rotate_key():
                         attempts += 1
                         continue
@@ -135,18 +163,36 @@ HTML to analyze:'''
                         logger.error("Rotation failed or single key exhausted.")
                         break
                 else:
-                    # Non-rotation error (e.g. bad request, network), just log and break/return empty
                     logger.error(f"Non-rotation error during parsing: {e}")
                     break
         
-        logger.error("Failed to extract jobs after trying available keys.")
         return []
 
-    def _process_response(self, response, source_url):
+    def _verify_integrity(self, jobs: list[dict], html_context: str) -> list[dict]:
+        """
+        Ask the AI to self-correct and verify the jobs exist in the HTML.
+        """
+        try:
+            jobs_json = json.dumps(jobs, indent=2)
+            prompt = self.VERIFICATION_PROMPT.format(jobs_json=jobs_json) + "\n\n" + html_context
+            
+            # Use the same retry logic for verification
+            verified_jobs = self._generate_with_retry(prompt)
+            
+            # Fallback for empty return on verification (paranoid check)
+            if not verified_jobs and jobs:
+                logger.warning("Verification returned empty list. Assuming AI error and keeping original jobs (risky but safer than losing all).")
+                return jobs
+                
+            return verified_jobs
+        except Exception as e:
+            logger.error(f"Verification check failed: {e}. Returning original jobs.")
+            return jobs
+
+    def _process_response(self, response, source_url=""):
         """Helper to process the raw Gemini response into job list."""
         try:
             text = response.text.strip()
-            
             if text.startswith("```"):
                 text = text.split("```")[1]
                 if text.startswith("json"):
@@ -154,20 +200,16 @@ HTML to analyze:'''
                 text = text.strip()
             
             jobs = json.loads(text)
-            for job in jobs:
-                job["source_url"] = source_url
-            
-            logger.info(f"Extracted {len(jobs)} jobs from {source_url}")
             return jobs
             
         except json.JSONDecodeError:
             logger.warning(f"JSON incomplete, attempting partial extraction...")
-            return self._extract_partial_json(response.text, source_url)
+            return self._extract_partial_json(response.text)
         except Exception as e:
             logger.error(f"Error processing response: {e}")
             return []
 
-    def _extract_partial_json(self, text, source_url):
+    def _extract_partial_json(self, text):
         """Attempt to extract valid JSON objects from broken response."""
         try:
             jobs = []
@@ -189,7 +231,6 @@ HTML to analyze:'''
                             try:
                                 job = json.loads(obj_str)
                                 if 'title' in job:
-                                    job["source_url"] = source_url
                                     jobs.append(job)
                             except: pass
                             obj_start = None
@@ -201,23 +242,13 @@ HTML to analyze:'''
                             i += 1
                     i += 1
             
-            if jobs:
-                logger.info(f"Recovered {len(jobs)} jobs from partial response")
-                return jobs
+            return jobs
         except Exception as e:
             logger.error(f"Partial extraction failed: {e}")
         return []
     
     def parse_multiple(self, html_dict: dict[str, Optional[str]]) -> list[dict]:
-        """
-        Parse multiple HTML pages.
-        
-        Args:
-            html_dict: Dictionary mapping URL to HTML content
-            
-        Returns:
-            Combined list of all jobs from all pages
-        """
+        """Combine lists of all jobs from all pages."""
         all_jobs = []
         for url, html in html_dict.items():
             if html:
