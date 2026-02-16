@@ -223,11 +223,28 @@ HTML:
     def _process_response(self, response, source_url=""):
         """Helper to process the raw Gemini response into job list."""
         try:
-            text = response.text.strip()
+            # DEBUG LOG
+            logger.info(f"Processing response type: {type(response)}")
+            
+            text = ""
+            if isinstance(response, list):
+                # Handle potential list return from API (e.g. pagination/streaming artifacts)
+                for part in response:
+                    if hasattr(part, 'text'):
+                        text += part.text
+            elif hasattr(response, 'text'):
+                text = response.text
+            
+            text = text.strip()
+            if not text:
+                return []
+
             if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
+                parts = text.split("```")
+                if len(parts) > 1:
+                    text = parts[1]
+                    if text.startswith("json"):
+                        text = text[4:]
                 text = text.strip()
             
             jobs = json.loads(text)
