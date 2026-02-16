@@ -329,9 +329,33 @@ HTML:
         all_jobs = []
         for url, html in html_dict.items():
             if html:
-                jobs = self.parse(html, source_url=url)
+                jobs = self._parse_single_page(html, url)
                 all_jobs.extend(jobs)
         return all_jobs
+
+    def _parse_single_page(self, html: str, base_url: str) -> list[dict]:
+        """Parse a single HTML page."""
+        clean_html = self._clean_html(html)
+        if not clean_html:
+            return []
+            
+        prompt = self.EXTRACTION_PROMPT + "\n\n" + clean_html
+        
+        try:
+            response_list = self._generate_with_retry(prompt)
+            jobs = self._process_response(response_list)
+            
+            # Post-processing: Resolve relative URLs
+            from urllib.parse import urljoin
+            for job in jobs:
+                if job.get('url'):
+                    # Resolve relative validation links
+                    job['url'] = urljoin(base_url, job['url'])
+                    
+            return jobs
+        except Exception as e:
+            logger.error(f"Partial extraction failed: {e}")
+        return []
 
 
 # Default parser instance
