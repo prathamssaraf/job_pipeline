@@ -18,15 +18,23 @@ class Parser:
     EXTRACTION_PROMPT = '''You are a job listing extractor. Analyze the HTML below and extract ALL job postings you can find.
 
 STRICT INSTRUCTIONS:
-1. EXTRACT TITLES EXACTLY AS THEY APPEAR. Do not capitalize, rephrase, beautify, or remove information.
-2. Do not infer or invent jobs. If a job is not explicitly listed, do not include it.
-3. If no jobs are found, return an empty array [].
+1. **MANDATORY**: A valid job posting MUST have a specific **Job Link** (URL) or **Apply Button**. If there is no specific link to the job details, IGNORE IT.
+2. **CONTEXT CHECK**: Besides the link, the job MUST have at least ONE of the following:
+   - Specific LOCATION (e.g. "Seattle, WA", "Remote")
+   - Posting DATE or STATUS (e.g. "2 days ago", "New", "Updated: 2/12/2026")
+   - "Apply" button text next to it
+   - Short Job Description snippet
+3. **EXCLUSION**: 
+   - If a text is just a Title (e.g. "Software Development") with NO specific link and NO context, it is a Category or Menu. IGNORE IT.
+   - Exclude Video titles (e.g. "Senior Program Manager" header for a video).
+4. EXTRACT TITLES EXACTLY AS THEY APPEAR.
+5. If no jobs are found, return an empty array [].
 
 For each job, extract:
 - title: The job title (EXACT MATCH)
 - company: Company name (if visible, otherwise use "Unknown")
 - location: Job location (if visible, otherwise use "Not specified")
-- url: Link to the job posting (if available, otherwise use "")
+- url: Link to the job posting (REQUIRED - return empty string ONLY if absolutely standard text parsing fails, but generally reject jobs with no link)
 - description: Brief description or requirements snippet (first 200 chars)
 
 Return ONLY a valid JSON array.
@@ -44,15 +52,38 @@ I will provide you with a list of jobs extracted from the HTML below.
 Your task is to VERIFY that each job actually exists in the provided HTML.
 
 Rules:
-1. Check the HTML for the specific Job Title and Company.
-2. If the job is real and present, keep it.
-3. If the job is a hallucination, duplicate, or not present, REMOVE IT.
-4. Return the filtered list of valid jobs as a JSON array.
+1. **LINK CHECK**: Does the job have a valid, specific URL/Apply Link extracted? 
+   - If NO link -> REMOVE IT (It's likely a category header).
+2. **CONTEXT CHECK**: Does it have a visible LOCATION, DATE, APPLY BUTTON, or DESCRIPTION in the HTML?
+   - If NO context -> REMOVE IT.
+3. Check the HTML for the specific Job Title and Company.
+4. REMOVE items that are just Categories (e.g. "Operations", "MBA"), Video Titles, or Navigation Links.
+5. Return the filtered list of valid jobs as a JSON array.
 
 Jobs to Verify:
 {jobs_json}
 
 HTML Context:
+'''
+
+    VERIFY_PAGE_PROMPT = '''You are a Job Validator.
+I have a potential job posting for:
+- Title: {title}
+- Company: {company}
+
+Analyze the HTML of the destination page below.
+Does this page confirm that this is indeed a job listing for the above position?
+Check for:
+- Presence of specific job description/requirements.
+- "Apply" button.
+- Title matching the one provided.
+
+If it's a login page, a generic search result list, or a "job not found" error, return FALSE.
+If it is the actual job description, return TRUE.
+
+Return strictly JSON: {{"valid": true, "reason": "..."}} or {{"valid": false, "reason": "..."}}
+
+HTML:
 '''
 
     def __init__(self):
@@ -247,6 +278,52 @@ HTML Context:
             logger.error(f"Partial extraction failed: {e}")
         return []
     
+    def verify_job_page(self, html: str, job: dict) -> bool:
+        """
+        Verify that a job detail page actually matches the job.
+        
+        Args:
+            html: HTML content of the job detail page.
+            job: The job dictionary containing 'title' and 'company'.
+            
+        Returns:
+            True if the page validates as a real job listing for this title.
+        """
+        if not html:
+            return False
+            
+        clean_html = self._clean_html(html)
+        title = job.get('title', 'Unknown')
+        company = job.get('company', 'Unknown')
+        
+        prompt = self.VERIFY_PAGE_PROMPT.format(title=title, company=company) + "\n\n" + clean_html
+        
+        try:
+            # Use retry logic
+            response_list = self._generate_with_retry(prompt)
+            # Response is expected to be a single dict, but _generate_with_retry returns list
+            # We need to handle that or adjust _generate_with_retry
+            # Actually _generate_with_retry returns parsed JSON (list or dict)
+            # But the prompt asks for a SINGLE JSON object.
+            # _process_response expects a list of jobs usually?
+            # Let's override or check type.
+            
+            # Since _generate_with_retry returns result of _process_response -> returns list or dict
+            result = response_list
+            
+            if isinstance(result, list) and result:
+                result = result[0]
+                
+            if isinstance(result, dict) and result.get("valid") is True:
+                return True
+                
+            logger.warning(f"Job validation failed for '{title}': {result.get('reason', 'Unknown reason')}")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error validating job page: {e}")
+            return False  # Fail safe: if we can't verify, don't add strictly? Or add loosely? User wants EXTRA layer. So fail safe = reject.
+
     def parse_multiple(self, html_dict: dict[str, Optional[str]]) -> list[dict]:
         """Combine lists of all jobs from all pages."""
         all_jobs = []

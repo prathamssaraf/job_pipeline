@@ -218,13 +218,37 @@ def run_pipeline_once():
     all_jobs = parser.parse_multiple(html_dict)
     
     # Find new jobs
-    new_jobs = storage.find_new_jobs(all_jobs)
+    new_candidates = storage.find_new_jobs(all_jobs)
     
-    # Save new jobs and notify
-    if new_jobs:
-        storage.save_jobs(new_jobs)
-        notifier.send(new_jobs)
-        scheduler_state["changes_detected_today"] += len(new_jobs)
+    # Deep Verification Layer
+    verified_jobs = []
+    if new_candidates:
+        logger.info(f"🔍 Deep Verification: Checking {len(new_candidates)} new candidates...")
+        
+        for job in new_candidates:
+            url = job.get('url')
+            if not url:
+                continue
+                
+            try:
+                # Fetch detail page to confirm existence and content
+                # passing requires_browser=False for speed, assuming detail pages are largely static
+                detail_html = unified_fetcher.fetch(url, requires_browser=False)
+                
+                if parser.verify_job_page(detail_html, job):
+                    verified_jobs.append(job)
+                    logger.info(f"✅ Verified: {job['title']}")
+                else:
+                    logger.warning(f"❌ Rejected: {job['title']} (Detail Page Verification Failed)")
+                    
+            except Exception as e:
+                logger.error(f"⚠️ Verification error for {job.get('title')}: {e}")
+                
+    # Save verified jobs and notify
+    if verified_jobs:
+        storage.save_jobs(verified_jobs)
+        notifier.send(verified_jobs)
+        scheduler_state["changes_detected_today"] += len(verified_jobs)
     
     # Update source stats - FIXED: Now outside 'if new_jobs' block
     # Only update stats for sources that successfully fetched
