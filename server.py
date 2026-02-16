@@ -269,11 +269,12 @@ def run_pipeline_once():
             logger.warning(f"Skipped stats update for {source['name']} (fetch failed)")
     
     scheduler_state["last_run"] = datetime.now().isoformat()
+    # forced sync trigger
     
     return {
         "success": True,
-        "message": f"Found {len(new_jobs)} new jobs",
-        "new_jobs": len(new_jobs),
+        "message": f"Found {len(verified_jobs)} new jobs",
+        "new_jobs": len(verified_jobs),
         "total_parsed": len(all_jobs),
         "sources_checked": len(sources),
         "sources_successful": successful
